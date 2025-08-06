@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: fit-finance-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_NAME:-fit_finance_db}
+      POSTGRES_USER: ${DB_USERNAME:-fitfinance}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password123}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - fit-finance-network
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: fit-finance-pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@fitfinance.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "8080:80"
+    depends_on:
+      - postgres
+    networks:
+      - fit-finance-network
+
+volumes:
+  postgres_data:
+
+networks:
+  fit-finance-network:
+    driver: bridge
