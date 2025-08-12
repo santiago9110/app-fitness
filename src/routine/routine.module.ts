@@ -8,6 +8,7 @@ import { Day } from './day.entity';
 import { Exercise } from './exercise.entity';
 import { SetEntity } from './set.entity';
 import { AssignedRoutine } from './assigned-routine.entity';
+import { ExerciseModification } from './exercise-modification.entity';
 import { RoutineService } from './routine.service';
 import { RoutineController } from './routine.controller';
 import { UsersModule } from '../users/users.module';
@@ -34,11 +35,28 @@ import { SetController } from './set.controller';
       Exercise,
       SetEntity,
       AssignedRoutine,
+      ExerciseModification,
     ]),
     UsersModule,
   ],
-  controllers: [RoutineController, MacrocycleController, MesocycleController, MicrocycleController, DayController, ExerciseController, SetController],
-  providers: [RoutineService, MacrocycleService, MesocycleService, MicrocycleService, DayService, ExerciseService, SetService],
+  controllers: [
+    RoutineController,
+    MacrocycleController,
+    MesocycleController,
+    MicrocycleController,
+    DayController,
+    ExerciseController,
+    SetController,
+  ],
+  providers: [
+    RoutineService,
+    MacrocycleService,
+    MesocycleService,
+    MicrocycleService,
+    DayService,
+    ExerciseService,
+    SetService,
+  ],
   exports: [TypeOrmModule],
 })
 export class RoutineModule {}

@@ -1,4 +1,12 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  OneToMany,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 import { Macrocycle } from './macrocycle.entity';
 import { Microcycle } from './microcycle.entity';
 
@@ -10,7 +18,9 @@ export class Mesocycle {
   @Column()
   name: string;
 
-  @ManyToOne(() => Macrocycle, macro => macro.mesocycles, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Macrocycle, (macro) => macro.mesocycles, {
+    onDelete: 'CASCADE',
+  })
   macrocycle: Macrocycle;
 
   @Column({ type: 'date', nullable: true })
@@ -19,7 +29,10 @@ export class Mesocycle {
   @Column({ type: 'date', nullable: true })
   endDate: Date;
 
-  @OneToMany(() => Microcycle, micro => micro.mesocycle, { cascade: true })
+  @Column({ nullable: true })
+  objetivo?: string; // Objetivo del mesociclo
+
+  @OneToMany(() => Microcycle, (micro) => micro.mesocycle, { cascade: true })
   microcycles: Microcycle[];
 
   @CreateDateColumn()

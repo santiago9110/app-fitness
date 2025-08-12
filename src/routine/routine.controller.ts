@@ -1,9 +1,24 @@
-import { Controller, Post, Param, Get, Delete, ParseIntPipe } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Param,
+  Get,
+  Delete,
+  ParseIntPipe,
+  Body,
+} from '@nestjs/common';
 import { RoutineService } from './routine.service';
+import { CreateCompleteRoutineDto } from './dto/create-complete-routine.dto';
 
 @Controller('routine')
 export class RoutineController {
   constructor(private readonly routineService: RoutineService) {}
+
+  // 🚀 NUEVA API: Crear rutina completa desde wizard
+  @Post('create-complete')
+  async createCompleteRoutine(@Body() wizardData: CreateCompleteRoutineDto) {
+    return await this.routineService.createCompleteRoutine(wizardData);
+  }
 
   // Asignar rutina a usuario
   @Post('assign/:userId/:macrocycleId')
@@ -22,7 +37,9 @@ export class RoutineController {
 
   // Desasignar rutina
   @Delete('assigned/:assignedRoutineId')
-  unassignRoutine(@Param('assignedRoutineId', ParseIntPipe) assignedRoutineId: number) {
+  unassignRoutine(
+    @Param('assignedRoutineId', ParseIntPipe) assignedRoutineId: number,
+  ) {
     return this.routineService.unassignRoutine(assignedRoutineId);
   }
 }

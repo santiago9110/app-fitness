@@ -37,22 +37,27 @@ export class MicrocycleService {
     if (data.days && Array.isArray(data.days)) {
       for (const dayDto of data.days) {
         const day = new Day();
-        day.number =
-          String(dayDto.number) !== '' && !isNaN(Number(dayDto.number))
-            ? Number(dayDto.number)
-            : null;
-        day.date = dayDto.date && dayDto.date !== '' ? dayDto.date : null;
+        // Mapeo compatible con DTOs antiguos y nuevos
+        day.dia = (dayDto as any).dia || dayDto.number || 1;
+        day.fecha = (dayDto as any).fecha || dayDto.date || null;
+        day.nombre = (dayDto as any).nombre || 'Día sin nombre';
+        day.esDescanso = (dayDto as any).esDescanso || false;
         day.microcycle = savedMicrocycle;
         day.exercises = [];
         const savedDay = await (this as any).microcycleRepo.manager.save(day);
 
         for (const exDto of dayDto.exercises) {
           const exercise = new Exercise();
-          exercise.name = exDto.name;
-          exercise.muscle = exDto.muscle;
-          exercise.type = exDto.type;
-          exercise.repRange = exDto.repRange;
-          exercise.tempo = exDto.tempo;
+          // Mapeo compatible con DTOs antiguos y nuevos
+          exercise.nombre = (exDto as any).nombre || exDto.name || '';
+          exercise.grupoMuscular =
+            (exDto as any).grupoMuscular || exDto.muscle || '';
+          exercise.series = (exDto as any).series || exDto.type || '';
+          exercise.repeticiones =
+            (exDto as any).repeticiones || exDto.repRange || '';
+          exercise.descanso = (exDto as any).descanso || exDto.tempo || '';
+          exercise.rirEsperado =
+            (exDto as any).rirEsperado || (exDto as any).expectedRir || '';
           exercise.day = savedDay;
           exercise.sets = [];
           const savedExercise = await (this as any).microcycleRepo.manager.save(
@@ -152,24 +157,31 @@ export class MicrocycleService {
     if (data.days && Array.isArray(data.days)) {
       for (const dayDto of data.days) {
         const day = new Day();
-        day.number = dayDto.number;
-        day.date = dayDto.date && dayDto.date !== '' ? dayDto.date : null;
-        day.number =
-          String(dayDto.number) !== '' && !isNaN(Number(dayDto.number))
-            ? Number(dayDto.number)
-            : null;
+        // Mapeo compatible con DTOs antiguos y nuevos
+        day.dia = (dayDto as any).dia || (dayDto as any).number || 1;
+        day.fecha = (dayDto as any).fecha || (dayDto as any).date || null;
+        day.nombre = (dayDto as any).nombre || 'Día sin nombre';
+        day.esDescanso = (dayDto as any).esDescanso || false;
         day.microcycle = { id } as Microcycle;
         day.exercises = [];
         const savedDay = await (this as any).microcycleRepo.manager.save(day);
 
         if (dayDto.exercises && Array.isArray(dayDto.exercises)) {
-          for (const exDto of dayDto.exercises) {
+          for (const exDto of (dayDto as any).exercises) {
             const exercise = new Exercise();
-            exercise.name = exDto.name;
-            exercise.muscle = exDto.muscle;
-            exercise.type = exDto.type;
-            exercise.repRange = exDto.repRange;
-            exercise.tempo = exDto.tempo;
+            // Mapeo compatible con DTOs antiguos y nuevos
+            exercise.nombre =
+              (exDto as any).nombre || (exDto as any).name || '';
+            exercise.grupoMuscular =
+              (exDto as any).grupoMuscular || (exDto as any).muscle || '';
+            exercise.series =
+              (exDto as any).series || (exDto as any).type || '';
+            exercise.repeticiones =
+              (exDto as any).repeticiones || (exDto as any).repRange || '';
+            exercise.descanso =
+              (exDto as any).descanso || (exDto as any).tempo || '';
+            exercise.rirEsperado =
+              (exDto as any).rirEsperado || (exDto as any).expectedRir || '';
             exercise.day = savedDay;
             exercise.sets = [];
             const savedExercise = await (

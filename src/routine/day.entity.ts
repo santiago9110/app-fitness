@@ -1,4 +1,12 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  OneToMany,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 import { Microcycle } from './microcycle.entity';
 import { Exercise } from './exercise.entity';
 
@@ -8,15 +16,21 @@ export class Day {
   id: number;
 
   @Column()
-  number: number;
+  dia: number; // Número del día (1-7)
+
+  @Column()
+  nombre: string; // Nombre del día ("Pecho y Tríceps", etc)
+
+  @Column({ default: false })
+  esDescanso: boolean; // Si es día de descanso
 
   @Column({ type: 'date', nullable: true })
-  date: string;
+  fecha?: string; // Fecha específica (cuando se asigna el microciclo)
 
-  @ManyToOne(() => Microcycle, micro => micro.days, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Microcycle, (micro) => micro.days, { onDelete: 'CASCADE' })
   microcycle: Microcycle;
 
-  @OneToMany(() => Exercise, exercise => exercise.day, { cascade: true })
+  @OneToMany(() => Exercise, (exercise) => exercise.day, { cascade: true })
   exercises: Exercise[];
 
   @CreateDateColumn()

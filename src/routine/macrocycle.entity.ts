@@ -1,11 +1,17 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  OneToMany,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 import { Mesocycle } from './mesocycle.entity';
 
 @Entity()
 export class Macrocycle {
   @PrimaryGeneratedColumn()
   id: number;
-
 
   @Column()
   name: string;
@@ -19,7 +25,10 @@ export class Macrocycle {
   @Column({ type: 'date' })
   endDate: string;
 
-  @OneToMany(() => Mesocycle, meso => meso.macrocycle, { cascade: true })
+  @Column({ nullable: true })
+  objetivo?: string; // Objetivo del macrociclo
+
+  @OneToMany(() => Mesocycle, (meso) => meso.macrocycle, { cascade: true })
   mesocycles: Mesocycle[];
 
   @CreateDateColumn()

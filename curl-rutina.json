@@ -1,0 +1,16 @@
+curl 'http://localhost:3000/api/routine/create-complete' \
+  -H 'Accept: application/json, text/plain, */*' \
+  -H 'Accept-Language: es-ES,es;q=0.9' \
+  -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NSwiaWF0IjoxNzU0NTMzODkxLCJleHAiOjE3NTQ1NDEwOTF9.2GFKamu02q5ojuZEy9OotXO9U_5THDtHc6qvCAE5RFI' \
+  -H 'Connection: keep-alive' \
+  -H 'Content-Type: application/json' \
+  -H 'Origin: http://localhost:5173' \
+  -H 'Referer: http://localhost:5173/' \
+  -H 'Sec-Fetch-Dest: empty' \
+  -H 'Sec-Fetch-Mode: cors' \
+  -H 'Sec-Fetch-Site: same-site' \
+  -H 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36' \
+  -H 'sec-ch-ua: "Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138"' \
+  -H 'sec-ch-ua-mobile: ?0' \
+  -H 'sec-ch-ua-platform: "Windows"' \
+  --data-raw '{"studentId":11,"macrocycle":{"nombre":"hiper","fechaInicio":"2025-08-06","fechaFin":"2025-11-25","objetivo":"dasd"},"mesociclos":[{"nombre":"Mesociclo 1","fechaInicio":"2025-08-06","fechaFin":"2025-10-12","objetivo":"dasdasd"}],"microciclos":[{"mesocicloIndex":0,"cantidadMicrociclos":10,"plantillaDias":[{"dia":1,"nombre":"Día 1","esDescanso":false,"ejercicios":[{"nombre":"test1","grupoMuscular":"pecho","series":"3","repeticiones":"6-9","descanso":"2","rirEsperado":"8","orden":1},{"nombre":"test2","grupoMuscular":"espalda","series":"4","repeticiones":"5-8","descanso":"2","rirEsperado":"5","orden":2}]},{"dia":2,"nombre":"Día 2","esDescanso":false,"ejercicios":[{"nombre":"tst3","grupoMuscular":"hombro","series":"4","repeticiones":"8-10","descanso":"2","rirEsperado":"8","orden":1},{"nombre":"test4","grupoMuscular":"pierna","series":"2","repeticiones":"5-8","descanso":"2","rirEsperado":"6","orden":2}]},{"dia":3,"nombre":"Día 3","esDescanso":false,"ejercicios":[]},{"dia":4,"nombre":"Día 4","esDescanso":false,"ejercicios":[]},{"dia":5,"nombre":"Día 5","esDescanso":false,"ejercicios":[]},{"dia":6,"nombre":"Día 6","esDescanso":false,"ejercicios":[]},{"dia":7,"nombre":"Día 7","esDescanso":true,"ejercicios":[]}]}]}'
