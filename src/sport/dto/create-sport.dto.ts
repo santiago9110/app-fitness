@@ -1,4 +1,4 @@
-import { IsNumber, IsOptional, IsString, MinLength } from "class-validator";
+import { IsNumber, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class CreateSportDto {
   @IsString()
@@ -10,5 +10,6 @@ export class CreateSportDto {
   description: string;
 
   @IsNumber()
-  monthlyFee:number
+  @IsOptional()
+  monthlyFee: number; // Opcional: precio base por compatibilidad
 }

@@ -1,0 +1,15 @@
+production en uso ahora
+
+psql 'postgresql://neondb_owner:npg_tjfbuGkey05l@ep-weathered-dust-aedxoqgj-pooler.c-2.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require'
+
+development
+psql 'postgresql://neondb_owner:npg_tjfbuGkey05l@ep-white-boat-ae34f23r-pooler.c-2.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require'
+
+psql 'postgresql://neondb_owner:npg_tjfbuGkey05l@ep-white-boat-ae34f23r-pooler.c-2.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require'
+
+
+frontend    main - fit-finance-ui-2
+            development - fit-finance-ui-dev fit-finance-ui-2-dev-p1ju
+
+backend     main - fit-finance-backend https://fit-finance-backend-8lhp.onrender.com/api
+            development - fit-finance-backend-dev url https://fit-finance-backend-dev.onrender.com

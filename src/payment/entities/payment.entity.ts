@@ -1,8 +1,13 @@
 // payment.entity.ts
 import { Fee } from '../../fee/entities/fee.entity';
 import { Student } from '../../student/entities/student.entity';
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
-
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
 
 @Entity('payments')
 export class Payment {
@@ -12,7 +17,7 @@ export class Payment {
   @Column()
   paymentDate: Date;
 
-  @Column()
+  @Column('decimal', { precision: 10, scale: 2 })
   amountPaid: number;
 
   @Column('')
@@ -35,4 +40,3 @@ export class Payment {
   @JoinColumn({ name: 'feeId' })
   fee: Fee;
 }
-

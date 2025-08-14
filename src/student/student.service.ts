@@ -1,6 +1,5 @@
 // ...existing code...
 
-
 import {
   BadRequestException,
   Injectable,
@@ -162,7 +161,7 @@ export class StudentService {
   async generateFeesForNewStudent(studentId: number): Promise<void> {
     const student = await this.studentRepository.findOne({
       where: { id: studentId },
-      relations: ['sport']
+      relations: ['sport', 'sportPlan'],
     });
 
     if (!student) {
@@ -170,12 +169,12 @@ export class StudentService {
     }
 
     const today = new Date();
-    
+
     // Generar 3 cuotas mensuales a partir de hoy
     for (let i = 0; i < 3; i++) {
       const startDate = new Date(today);
       startDate.setMonth(today.getMonth() + i);
-      
+
       const endDate = new Date(startDate);
       endDate.setMonth(endDate.getMonth() + 1);
       endDate.setDate(endDate.getDate() - 1); // Un día antes del próximo mes
@@ -192,23 +191,38 @@ export class StudentService {
       });
 
       if (!existingFee) {
+        // Obtener el precio correcto: desde sportPlan si existe, sino desde sport
+        const monthlyFee =
+          student.sportPlan?.monthlyFee || student.sport?.monthlyFee;
+
+        if (!monthlyFee) {
+          this.logger.warn(
+            `No se pudo determinar el precio mensual para el estudiante ${student.firstName} ${student.lastName} (ID: ${student.id})`,
+          );
+          return;
+        }
+
         const newFee = this.feeRepository.create({
           student: { id: student.id } as Student,
           startDate: startDate,
           endDate: endDate,
-          value: student.sport.monthlyFee,
+          value: monthlyFee,
           amountPaid: 0,
           month: month,
           year: year,
+          sportPlan: student.sportPlan ? { id: student.sportPlan.id } : null,
+          sport: { id: student.sport.id },
         });
         await this.feeRepository.save(newFee);
-        
-        this.logger.log(`Fee generated for student ${student.id}: ${startDate.toDateString()} - ${endDate.toDateString()}`);
+
+        this.logger.log(
+          `Fee generated for student ${student.id}: ${startDate.toDateString()} - ${endDate.toDateString()}`,
+        );
       }
     }
   }
 
-    async findByCoachUserId(coachUserId: number) {
+  async findByCoachUserId(coachUserId: number) {
     // Busca el coach por el userId
     const students = await this.studentRepository
       .createQueryBuilder('student')

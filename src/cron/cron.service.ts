@@ -21,15 +21,17 @@ export class CronService {
   @Cron(CronExpression.EVERY_DAY_AT_9AM)
   async generateMonthlyFees() {
     this.logger.log('Iniciando generación automática de cuotas mensuales...');
-    
+
     try {
       // Obtener todos los estudiantes activos
       const activeStudents = await this.studentRepository.find({
         where: { isActive: true },
-        relations: ['sport'],
+        relations: ['sport', 'sportPlan'],
       });
 
-      this.logger.log(`Procesando ${activeStudents.length} estudiantes activos`);
+      this.logger.log(
+        `Procesando ${activeStudents.length} estudiantes activos`,
+      );
 
       for (const student of activeStudents) {
         await this.generateNextFeeIfNeeded(student);
@@ -45,7 +47,7 @@ export class CronService {
     try {
       // Verificar cuántas cuotas futuras tiene el estudiante
       const today = new Date();
-      
+
       const futureFees = await this.feeRepository
         .createQueryBuilder('fee')
         .where('fee.studentId = :studentId', { studentId: student.id })
@@ -62,7 +64,7 @@ export class CronService {
           .getOne();
 
         let startDate: Date;
-        
+
         if (lastFee) {
           // La nueva cuota comienza al día siguiente de la última
           startDate = new Date(lastFee.endDate);
@@ -89,25 +91,41 @@ export class CronService {
         });
 
         if (!existingFee) {
+          // Obtener el precio correcto: desde sportPlan si existe, sino desde sport
+          const monthlyFee =
+            student.sportPlan?.monthlyFee || student.sport?.monthlyFee;
+
+          if (!monthlyFee) {
+            this.logger.warn(
+              `No se pudo determinar el precio mensual para el estudiante ${student.firstName} ${student.lastName} (ID: ${student.id})`,
+            );
+            return;
+          }
+
           const newFee = this.feeRepository.create({
             student: { id: student.id } as Student,
             startDate: startDate,
             endDate: endDate,
-            value: student.sport.monthlyFee,
+            value: monthlyFee,
             amountPaid: 0,
             month: month,
             year: year,
+            sportPlan: student.sportPlan ? { id: student.sportPlan.id } : null,
+            sport: { id: student.sport.id },
           });
 
           await this.feeRepository.save(newFee);
-          
+
           this.logger.log(
-            `Nueva cuota generada para estudiante ${student.firstName} ${student.lastName} (ID: ${student.id}): ${startDate.toDateString()} - ${endDate.toDateString()}`
+            `Nueva cuota generada para estudiante ${student.firstName} ${student.lastName} (ID: ${student.id}): ${startDate.toDateString()} - ${endDate.toDateString()}`,
           );
         }
       }
     } catch (error) {
-      this.logger.error(`Error generando cuota para estudiante ${student.id}:`, error);
+      this.logger.error(
+        `Error generando cuota para estudiante ${student.id}:`,
+        error,
+      );
     }
   }
 

@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { CreateFeeDto } from './dto/create-fee.dto';
 import { UpdateFeeDto } from './dto/update-fee.dto';
 import { Cron } from '@nestjs/schedule';
@@ -39,12 +44,16 @@ export class FeeService {
     return feesOfCurrentMonth;
   }
 
-  async getFeesByPeriod(month?: number, year?: number, paginationDto?: PaginationDto) {
+  async getFeesByPeriod(
+    month?: number,
+    year?: number,
+    paginationDto?: PaginationDto,
+  ) {
     const { limit = 10, offset = 0 } = paginationDto || {};
 
     // Si no se proporcionan month/year, usar el mes/año actual
     const currentDate = new Date();
-    const targetMonth = month || (currentDate.getMonth() + 1);
+    const targetMonth = month || currentDate.getMonth() + 1;
     const targetYear = year || currentDate.getFullYear();
 
     this.logger.log(`Getting fees for period: ${targetMonth}/${targetYear}`);
@@ -59,15 +68,15 @@ export class FeeService {
         take: limit,
         skip: offset,
         order: {
-          createdAt: 'DESC'
-        }
+          createdAt: 'DESC',
+        },
       });
 
       // Calcular estadísticas
       const totalFees = fees.length;
-      const paidFees = fees.filter(fee => fee.status === 'completed').length;
-      const partialFees = fees.filter(fee => fee.status === 'partial').length;
-      const pendingFees = fees.filter(fee => fee.status === 'pending').length;
+      const paidFees = fees.filter((fee) => fee.status === 'completed').length;
+      const partialFees = fees.filter((fee) => fee.status === 'partial').length;
+      const pendingFees = fees.filter((fee) => fee.status === 'pending').length;
 
       return {
         fees,
@@ -75,12 +84,12 @@ export class FeeService {
           total: totalFees,
           paid: paidFees,
           partial: partialFees,
-          pending: pendingFees
+          pending: pendingFees,
         },
         period: {
           month: targetMonth,
-          year: targetYear
-        }
+          year: targetYear,
+        },
       };
     } catch (error) {
       this.logger.error(`Error getting fees by period: ${error.message}`);
@@ -117,11 +126,16 @@ export class FeeService {
   }
 
   private async getAllStudents(): Promise<Student[]> {
-    return this.feeRepository.manager.getRepository(Student).find();
+    return this.feeRepository.manager.getRepository(Student).find({
+      relations: ['sport', 'sportPlan'],
+    });
   }
 
   private async getStudentById(id: number): Promise<Student> {
-    return this.feeRepository.manager.getRepository(Student).findOneBy({ id });
+    return this.feeRepository.manager.getRepository(Student).findOne({
+      where: { id },
+      relations: ['sport', 'sportPlan'],
+    });
   }
 
   private async generateFeesForStudents(students: Student[]): Promise<void> {
@@ -161,6 +175,16 @@ export class FeeService {
         });
 
         if (!existingFee) {
+          // Obtener el precio correcto: desde sportPlan si existe, sino desde sport
+          const monthlyFee =
+            student.sportPlan?.monthlyFee || student.sport?.monthlyFee;
+
+          if (!monthlyFee) {
+            throw new BadRequestException(
+              `No se pudo determinar el precio mensual para el estudiante ${student.firstName} ${student.lastName}`,
+            );
+          }
+
           const newFee = this.feeRepository.create({
             student: { id: student.id } as Student,
             startDate: new Date(
@@ -169,10 +193,12 @@ export class FeeService {
               1,
             ),
             endDate: new Date(monthToGenerate.year, monthToGenerate.month, 0), // Último día del mes
-            value: student.sport.monthlyFee,
+            value: monthlyFee,
             amountPaid: 0,
             month: monthToGenerate.month,
             year: monthToGenerate.year,
+            sportPlan: student.sportPlan ? { id: student.sportPlan.id } : null,
+            sport: { id: student.sport.id },
           });
           await this.feeRepository.save(newFee);
         }
@@ -192,24 +218,27 @@ export class FeeService {
     this.logger.log('Called when the current second is 45');
   }
 
-  async validateSequentialPayment(studentId: number, feeId: number): Promise<{ isValid: boolean; message?: string; unpaidFees?: Fee[] }> {
+  async validateSequentialPayment(
+    studentId: number,
+    feeId: number,
+  ): Promise<{ isValid: boolean; message?: string; unpaidFees?: Fee[] }> {
     // Obtener la cuota que se quiere pagar
     const targetFee = await this.feeRepository.findOne({
       where: { id: feeId },
-      relations: ['student']
+      relations: ['student'],
     });
 
     if (!targetFee) {
       return {
         isValid: false,
-        message: 'La cuota especificada no existe'
+        message: 'La cuota especificada no existe',
       };
     }
 
     if (targetFee.student.id !== studentId) {
       return {
         isValid: false,
-        message: 'La cuota no pertenece al estudiante especificado'
+        message: 'La cuota no pertenece al estudiante especificado',
       };
     }
 
@@ -217,7 +246,7 @@ export class FeeService {
     if (targetFee.amountPaid >= targetFee.value) {
       return {
         isValid: false,
-        message: 'Esta cuota ya está completamente pagada'
+        message: 'Esta cuota ya está completamente pagada',
       };
     }
 
@@ -225,7 +254,9 @@ export class FeeService {
     const unpaidPreviousFees = await this.feeRepository
       .createQueryBuilder('fee')
       .where('fee.studentId = :studentId', { studentId })
-      .andWhere('fee.startDate < :targetStartDate', { targetStartDate: targetFee.startDate })
+      .andWhere('fee.startDate < :targetStartDate', {
+        targetStartDate: targetFee.startDate,
+      })
       .andWhere('fee.amountPaid < fee.value') // Cuotas no completamente pagadas
       .orderBy('fee.startDate', 'ASC')
       .getMany();
@@ -234,20 +265,30 @@ export class FeeService {
       return {
         isValid: false,
         message: `No se puede pagar la cuota de ${this.getMonthName(targetFee.month)} ${targetFee.year} porque tienes cuotas anteriores pendientes`,
-        unpaidFees: unpaidPreviousFees
+        unpaidFees: unpaidPreviousFees,
       };
     }
 
     return {
       isValid: true,
-      message: 'El pago puede proceder'
+      message: 'El pago puede proceder',
     };
   }
 
   private getMonthName(month: number): string {
     const months = [
-      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+      'Enero',
+      'Febrero',
+      'Marzo',
+      'Abril',
+      'Mayo',
+      'Junio',
+      'Julio',
+      'Agosto',
+      'Septiembre',
+      'Octubre',
+      'Noviembre',
+      'Diciembre',
     ];
     return months[month - 1];
   }
@@ -276,12 +317,14 @@ export class FeeService {
     const currentMonth = currentDate.getMonth() + 1;
     const currentYear = currentDate.getFullYear();
 
-    const feesWithDetails = fees.map(fee => {
+    const feesWithDetails = fees.map((fee) => {
       const isPaid = fee.amountPaid >= fee.value;
       const isPartial = fee.amountPaid > 0 && fee.amountPaid < fee.value;
       const isPending = fee.amountPaid === 0;
       const isCurrent = fee.month === currentMonth && fee.year === currentYear;
-      const isOverdue = (fee.year < currentYear) || (fee.year === currentYear && fee.month < currentMonth);
+      const isOverdue =
+        fee.year < currentYear ||
+        (fee.year === currentYear && fee.month < currentMonth);
 
       return {
         id: fee.id,
@@ -296,30 +339,39 @@ export class FeeService {
         status: isPaid ? 'paid' : isPartial ? 'partial' : 'pending',
         isCurrent,
         isOverdue: isOverdue && !isPaid,
-        payments: fee.payments?.map(payment => ({
-          id: payment.id,
-          amount: payment.amountPaid,
-          paymentDate: payment.paymentDate,
-          paymentMethod: payment.paymentMethod,
-        })) || [],
+        payments:
+          fee.payments?.map((payment) => ({
+            id: payment.id,
+            amount: payment.amountPaid,
+            paymentDate: payment.paymentDate,
+            paymentMethod: payment.paymentMethod,
+          })) || [],
         paymentCount: fee.payments?.length || 0,
       };
     });
 
     // Estadísticas
     const totalFees = feesWithDetails.length;
-    const paidFees = feesWithDetails.filter(fee => fee.status === 'paid').length;
-    const partialFees = feesWithDetails.filter(fee => fee.status === 'partial').length;
-    const pendingFees = feesWithDetails.filter(fee => fee.status === 'pending').length;
-    const overdueFees = feesWithDetails.filter(fee => fee.isOverdue).length;
+    const paidFees = feesWithDetails.filter(
+      (fee) => fee.status === 'paid',
+    ).length;
+    const partialFees = feesWithDetails.filter(
+      (fee) => fee.status === 'partial',
+    ).length;
+    const pendingFees = feesWithDetails.filter(
+      (fee) => fee.status === 'pending',
+    ).length;
+    const overdueFees = feesWithDetails.filter((fee) => fee.isOverdue).length;
 
     return {
-      student: fees[0]?.student ? {
-        id: fees[0].student.id,
-        firstName: fees[0].student.firstName,
-        lastName: fees[0].student.lastName,
-        sport: fees[0].student.sport,
-      } : null,
+      student: fees[0]?.student
+        ? {
+            id: fees[0].student.id,
+            firstName: fees[0].student.firstName,
+            lastName: fees[0].student.lastName,
+            sport: fees[0].student.sport,
+          }
+        : null,
       summary: {
         total: totalFees,
         paid: paidFees,
@@ -354,7 +406,7 @@ export class FeeService {
   async updateFeePaymentStatus(feeId: number, amountPaid: number) {
     const fee = await this.feeRepository.findOne({
       where: { id: feeId },
-      relations: ['payments']
+      relations: ['payments'],
     });
 
     if (!fee) {
@@ -363,7 +415,10 @@ export class FeeService {
 
     // Calcular el total pagado solo de los pagos existentes
     // El nuevo pago ya debe estar guardado en la base de datos
-    const totalPaid = fee.payments.reduce((sum, payment) => sum + payment.amountPaid, 0);
+    const totalPaid = fee.payments.reduce(
+      (sum, payment) => sum + payment.amountPaid,
+      0,
+    );
 
     // Determinar el status basado en el monto pagado
     let status: 'pending' | 'partial' | 'completed' = 'pending';
@@ -376,11 +431,12 @@ export class FeeService {
     // Actualizar la cuota con el monto total pagado y el status
     await this.feeRepository.update(feeId, {
       amountPaid: totalPaid,
-      status: status
+      status: status,
     });
 
-    this.logger.log(`Fee ${feeId} updated: amount paid ${totalPaid} (from ${fee.payments.length} payments), status: ${status}`);
+    this.logger.log(
+      `Fee ${feeId} updated: amount paid ${totalPaid} (from ${fee.payments.length} payments), status: ${status}`,
+    );
     return fee;
   }
 }
-

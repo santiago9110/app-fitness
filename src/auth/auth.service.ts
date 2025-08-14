@@ -88,7 +88,7 @@ export class AuthService {
     }
 
     // Mapear roles a userTypes
-    const userTypes: string[] = user.roles.map(role => {
+    const userTypes: string[] = user.roles.map((role) => {
       if (role.name === 'user') return 'student';
       if (role.name === 'coach') return 'coach';
       if (role.name === 'admin') return 'admin';
@@ -107,7 +107,7 @@ export class AuthService {
       const studentRepository = this.dataSource.getRepository(Student);
       const student = await studentRepository.findOne({
         where: { user: { id: user.id } },
-        relations: ['sport', 'user'],
+        relations: ['sport', 'sportPlan', 'user'],
       });
 
       if (student) {
@@ -123,8 +123,9 @@ export class AuthService {
           sport: {
             id: student.sport.id,
             name: student.sport.name,
-            monthlyFee: student.sport.monthlyFee,
-          }
+            monthlyFee:
+              student.sportPlan?.monthlyFee || student.sport.monthlyFee,
+          },
         };
       }
     }
@@ -138,7 +139,7 @@ export class AuthService {
       token: this.getJwtToken({ id }),
       student: studentInfo,
       userTypes, // array de roles traducidos
-      userType: mainUserType // principal para compatibilidad frontend
+      userType: mainUserType, // principal para compatibilidad frontend
     };
   }
 
@@ -160,7 +161,15 @@ export class AuthService {
     const studentRepository = this.dataSource.getRepository(Student);
     const student = await studentRepository.findOne({
       where: { user: { id: userId } },
-      relations: ['sport', 'user', 'fees', 'fees.payments', 'coach', 'coach.user'],
+      relations: [
+        'sport',
+        'sportPlan',
+        'user',
+        'fees',
+        'fees.payments',
+        'coach',
+        'coach.user',
+      ],
     });
 
     if (!student) {
@@ -173,29 +182,32 @@ export class AuthService {
     const currentYear = currentDate.getFullYear();
 
     // Cuotas pendientes solo de meses vencidos o del mes actual
-    const currentPendingFees = student.fees.filter(fee => {
+    const currentPendingFees = student.fees.filter((fee) => {
       const feeDate = new Date(fee.year, fee.month - 1);
       const currentMonthDate = new Date(currentYear, currentMonth - 1);
-      
+
       // Solo incluir cuotas que ya vencieron o son del mes actual
       return feeDate <= currentMonthDate && fee.amountPaid < fee.value;
     });
 
-    const currentPending = currentPendingFees.reduce((sum, fee) => sum + (fee.value - fee.amountPaid), 0);
+    const currentPending = currentPendingFees.reduce(
+      (sum, fee) => sum + (fee.value - fee.amountPaid),
+      0,
+    );
 
     // Cuotas del mes actual
     const currentMonthFees = student.fees.filter(
-      fee => fee.month === currentMonth && fee.year === currentYear
+      (fee) => fee.month === currentMonth && fee.year === currentYear,
     );
 
     // Cuotas pendientes (no pagadas completamente)
     const pendingFees = student.fees.filter(
-      fee => fee.amountPaid < fee.value
+      (fee) => fee.amountPaid < fee.value,
     );
 
     // Cuotas desde el mes actual hacia adelante (incluyendo algunas pasadas)
     const recentFees = student.fees
-      .filter(fee => {
+      .filter((fee) => {
         const feeDate = new Date(fee.year, fee.month - 1);
         const twoMonthsAgo = new Date(currentYear, currentMonth - 3); // 2 meses atrás
         const sixMonthsAhead = new Date(currentYear, currentMonth + 5); // 6 meses adelante
@@ -222,19 +234,24 @@ export class AuthService {
       sport: {
         id: student.sport.id,
         name: student.sport.name,
-        monthlyFee: student.sport.monthlyFee,
+        monthlyFee: student.sportPlan?.monthlyFee || student.sport.monthlyFee,
       },
-      coach: student.coach ? {
-        id: student.coach.id,
-        firstName: student.coach.user?.fullName?.split(', ')[1] || '',
-        lastName: student.coach.user?.fullName?.split(', ')[0] || '',
-        email: student.coach.user?.email || '',
-      } : null,
+      coach: student.coach
+        ? {
+            id: student.coach.id,
+            firstName: student.coach.user?.fullName?.split(', ')[1] || '',
+            lastName: student.coach.user?.fullName?.split(', ')[0] || '',
+            email: student.coach.user?.email || '',
+          }
+        : null,
       feesSummary: {
         totalPaid: student.fees.reduce((sum, fee) => sum + fee.amountPaid, 0),
-        totalPending: student.fees.reduce((sum, fee) => sum + (fee.value - fee.amountPaid), 0),
+        totalPending: student.fees.reduce(
+          (sum, fee) => sum + (fee.value - fee.amountPaid),
+          0,
+        ),
         currentPending: currentPending, // Solo cuotas vencidas o del mes actual
-        currentMonthFees: currentMonthFees.map(fee => ({
+        currentMonthFees: currentMonthFees.map((fee) => ({
           id: fee.id,
           month: fee.month,
           year: fee.year,
@@ -243,11 +260,15 @@ export class AuthService {
           startDate: fee.startDate,
           endDate: fee.endDate,
           isPaid: fee.amountPaid >= fee.value,
-          paymentStatus: fee.amountPaid >= fee.value ? 'paid' : 
-                        fee.amountPaid > 0 ? 'partial' : 'pending'
+          paymentStatus:
+            fee.amountPaid >= fee.value
+              ? 'paid'
+              : fee.amountPaid > 0
+                ? 'partial'
+                : 'pending',
         })),
         pendingFeesCount: pendingFees.length,
-        recentFees: recentFees.map(fee => ({
+        recentFees: recentFees.map((fee) => ({
           id: fee.id,
           month: fee.month,
           year: fee.year,
@@ -259,13 +280,23 @@ export class AuthService {
           endDate: fee.endDate,
           dueDate: fee.endDate, // Fecha de vencimiento
           isPaid: fee.amountPaid >= fee.value,
-          paymentStatus: fee.amountPaid >= fee.value ? 'paid' : 
-                        fee.amountPaid > 0 ? 'partial' : 'pending',
+          paymentStatus:
+            fee.amountPaid >= fee.value
+              ? 'paid'
+              : fee.amountPaid > 0
+                ? 'partial'
+                : 'pending',
           // Obtener fecha del último pago si existe
-          lastPaymentDate: fee.payments && fee.payments.length > 0 ? 
-            fee.payments.sort((a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime())[0].paymentDate : null
+          lastPaymentDate:
+            fee.payments && fee.payments.length > 0
+              ? fee.payments.sort(
+                  (a, b) =>
+                    new Date(b.paymentDate).getTime() -
+                    new Date(a.paymentDate).getTime(),
+                )[0].paymentDate
+              : null,
         })),
-      }
+      },
     };
   }
 
@@ -293,28 +324,30 @@ export class AuthService {
       sport: {
         id: student.sport.id,
         name: student.sport.name,
-        monthlyFee: student.sport.monthlyFee,
+        monthlyFee: student.sportPlan?.monthlyFee || student.sport.monthlyFee,
       },
       user: {
         id: student.user.id,
         email: student.user.email,
         fullName: student.user.fullName,
-      }
+      },
     };
   }
 
   async verifyToken(user: User) {
     const userWithRelations = await this.userRepository.findOne({
       where: { id: user.id },
-      relations: ['roles', 'student', 'student.sport'],
+      relations: ['roles', 'student', 'student.sport', 'student.sportPlan'],
     });
 
     if (!userWithRelations) {
       throw new UnauthorizedException('Usuario no encontrado');
     }
 
-    const isStudent = userWithRelations.roles.some(role => role.name === 'user');
-    
+    const isStudent = userWithRelations.roles.some(
+      (role) => role.name === 'user',
+    );
+
     if (isStudent && userWithRelations.student) {
       return {
         user: {
@@ -327,7 +360,7 @@ export class AuthService {
           firstName: userWithRelations.student.firstName,
           lastName: userWithRelations.student.lastName,
           sport: userWithRelations.student.sport?.name,
-        }
+        },
       };
     }
 
@@ -336,7 +369,7 @@ export class AuthService {
         id: userWithRelations.id,
         email: userWithRelations.email,
         fullName: userWithRelations.fullName,
-      }
+      },
     };
   }
 
@@ -351,10 +384,19 @@ export class AuthService {
 
   private getMonthName(month: number): string {
     const months = [
-      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+      'Enero',
+      'Febrero',
+      'Marzo',
+      'Abril',
+      'Mayo',
+      'Junio',
+      'Julio',
+      'Agosto',
+      'Septiembre',
+      'Octubre',
+      'Noviembre',
+      'Diciembre',
     ];
     return months[month - 1] || `Mes ${month}`;
   }
 }
-

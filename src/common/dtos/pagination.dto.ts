@@ -46,4 +46,12 @@ export class PaginationDto {
   @IsOptional()
   @Type(() => Number) // enableImplicitConversions: true
   year?: number;
+
+  @ApiProperty({
+    description: 'Timestamp for cache busting',
+    required: false,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  _t?: number;
 }
