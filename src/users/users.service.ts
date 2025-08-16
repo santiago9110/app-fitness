@@ -1,5 +1,5 @@
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, Repository, Not, IsNull } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import {
   Injectable,
@@ -8,13 +8,14 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { FilterUsersDto } from './dto/filter-users.dto';
+import { UserResponseDto } from './dto/user-response.dto';
 import { ERROR_DB } from '../constants';
-import { PaginationDto } from '../common/dtos/pagination.dto';
 import { User } from '../auth/entities/user.entity';
+import { plainToInstance } from 'class-transformer';
 
 @Injectable()
 export class UsersService {
@@ -48,18 +49,57 @@ export class UsersService {
     }
   }
 
-  async findAll(paginationDto: PaginationDto) {
-    const { limit = 10, offset = 0 } = paginationDto;
-    const users = await this.userRepository.find({
-      take: limit,
-      skip: offset,
-      // relations: ['roles'],
-    });
+  async findAll(filters: FilterUsersDto) {
+    const {
+      role,
+      isActive,
+      search,
+      startDate,
+      endDate,
+      page = 1,
+      limit = 10,
+    } = filters;
 
-    return users.map((user) => {
-      console.log('user', user);
-      return { ...user, roles: user.roles.map((r) => r.name) };
-    });
+    const query = this.userRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.roles', 'role')
+      .where('user.deletedAt IS NULL');
+
+    if (role) {
+      query.andWhere('role.name = :role', { role });
+    }
+
+    if (isActive !== undefined) {
+      query.andWhere('user.isActive = :isActive', { isActive });
+    }
+
+    if (search) {
+      query.andWhere(
+        '(user.fullName ILIKE :search OR user.email ILIKE :search)',
+        { search: `%${search}%` },
+      );
+    }
+
+    if (startDate) {
+      query.andWhere('user.createdAt >= :startDate', { startDate });
+    }
+
+    if (endDate) {
+      query.andWhere('user.createdAt <= :endDate', { endDate });
+    }
+
+    const skip = (page - 1) * limit;
+
+    const [users, total] = await query.take(limit).skip(skip).getManyAndCount();
+
+    return {
+      data: plainToInstance(UserResponseDto, users, {
+        excludeExtraneousValues: true,
+      }),
+      total,
+      page,
+      limit,
+    };
   }
 
   async findOne(id: number) {
@@ -87,9 +127,39 @@ export class UsersService {
   }
 
   async remove(id: number) {
-    const user = await this.findOne(id);
+    await this.findOne(id);
+    await this.userRepository.softDelete(id);
+  }
 
-    await this.userRepository.remove(user);
+  async restore(id: number) {
+    await this.userRepository.restore(id);
+    return this.findOne(id);
+  }
+
+  async toggleActiveStatus(id: number) {
+    const user = await this.findOne(id);
+    user.isActive = !user.isActive;
+    await this.userRepository.save(user);
+    return user;
+  }
+
+  async getUserStats() {
+    const [total, active, inactive, deleted, byRole] = await Promise.all([
+      this.userRepository.count(),
+      this.userRepository.count({ where: { isActive: true } }),
+      this.userRepository.count({ where: { isActive: false } }),
+      this.userRepository.count({ withDeleted: true, where: { deletedAt: Not(IsNull()) } }),
+      this.userRepository
+        .createQueryBuilder('user')
+        .leftJoin('user.roles', 'role')
+        .select('role.name', 'role')
+        .addSelect('COUNT(*)', 'count')
+        .where('user.deletedAt IS NULL')
+        .groupBy('role.name')
+        .getRawMany(),
+    ]);
+
+    return { total, active, inactive, deleted, byRole };
   }
 
   private handleDBExceptions(error: any) {

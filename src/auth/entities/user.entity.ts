@@ -3,6 +3,7 @@ import {
   BeforeInsert,
   BeforeUpdate,
   Column,
+  DeleteDateColumn,
   Entity,
   JoinTable,
   ManyToMany,
@@ -39,6 +40,12 @@ export class User {
 
   @OneToOne(() => Student, (student) => student.user)
   student: Student;
+
+  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  createdAt: Date;
+
+  @DeleteDateColumn()
+  deletedAt?: Date;
 
   @BeforeInsert()
   checkFieldsBeforeInsert() {

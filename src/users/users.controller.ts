@@ -8,11 +8,12 @@ import {
   Delete,
   ParseIntPipe,
   Query,
+  Put,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { PaginationDto } from '../common/dtos/pagination.dto';
+import { FilterUsersDto } from './dto/filter-users.dto';
 import { ApiTags } from '@nestjs/swagger';
 
 @ApiTags('Users')
@@ -26,8 +27,13 @@ export class UsersController {
   }
 
   @Get()
-  findAll(@Query() paginationDto: PaginationDto) {
-    return this.usersService.findAll(paginationDto);
+  findAll(@Query() filters: FilterUsersDto) {
+    return this.usersService.findAll(filters);
+  }
+
+  @Get('stats')
+  getStats() {
+    return this.usersService.getUserStats();
   }
 
   @Get(':id')
@@ -46,5 +52,15 @@ export class UsersController {
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.usersService.remove(id);
+  }
+
+  @Put(':id/restore')
+  restore(@Param('id', ParseIntPipe) id: number) {
+    return this.usersService.restore(id);
+  }
+
+  @Put(':id/toggle-active')
+  toggleActive(@Param('id', ParseIntPipe) id: number) {
+    return this.usersService.toggleActiveStatus(id);
   }
 }
